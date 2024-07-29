@@ -29,7 +29,10 @@ private:
     
     std::vector <int> cdsPositions;
     std::vector <bool> cdsPositionsComplement;
-    
+
+    std::vector <int> featureStartPos;
+    std::vector <int> featureStopPos;
+    int featuresRead = 0;
     
     void readFeature(std::string feature, bool verbose);
 
@@ -43,7 +46,9 @@ public:
     //void returnCDS2merge( std::vector < std::vector <int> > & CDSmatrix, bool verbose);
     std::string getInfile(){return infile;}
     std::string getScaffold(){return scaffold;}
-
+    int getNumberOfFeatures(){return featuresRead;}
+    int getFeatureStart(int i){return featureStartPos.at(i);}
+    int getFeatureStop(int i){return featureStopPos.at(i);}
 };
 
 

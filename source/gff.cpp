@@ -31,7 +31,6 @@ void gff::readFile(bool include, const std::string & scaffold, const std::string
 
 void gff::readAll(bool verbose){
     std::string cline;
-    unsigned int featuresRead = 0;
     unsigned int sitesMatch = 0;
     std::ifstream readFile(this->infile);
     if(!readFile.is_open()){
@@ -43,6 +42,8 @@ void gff::readAll(bool verbose){
             continue;
         }else{
             featuresRead++;
+            featureStartPos.push_back(std::stoi (fields.at(3)) - 1);
+            featureStopPos.push_back( std::stoi(fields.at(4)) - 1);
             try{
                 for(unsigned int i = std::stoi(fields.at(3)); i <= std::stoi(fields.at(4)); i++){
                     // note the -1 below, so the positions become 0-indexed
@@ -62,7 +63,6 @@ void gff::readAll(bool verbose){
 
 void gff::readFeature(std::string feature, bool verbose){
     std::string cline;
-    unsigned int featuresRead = 0;
     unsigned int sitesMatch = 0;
     std::ifstream readFile(this->infile);
     if(!readFile.is_open()){
@@ -74,7 +74,9 @@ void gff::readFeature(std::string feature, bool verbose){
             continue;
         }else{
             featuresRead++;
-            try{
+            featureStartPos.push_back(std::stoi (fields.at(3)) - 1);
+            featureStopPos.push_back( std::stoi(fields.at(4)) - 1);
+          try{
                 for(unsigned int i = std::stoi(fields.at(3)); i <= std::stoi(fields.at(4)); i++){
                 // note the -1 below, so the positions become 0-indexed
                 this->regionsOfInterest[i-1] = true;

@@ -21,27 +21,30 @@ void sequenceHandler::readFasta (std::string infile, bool verbose){
         throw std::string("ERROR: cant open infile?");
     }
     while (getline (readFile, cline)) {
+        if(cind >= maxseqs){
+            throw std::string("ERROR: too many sequences, need to recompile program");
+        }
         if( cline.at(0) == '>' ){
             this->SeqNames.push_back(cline.substr(1));
             cind++;
         }
         else{
             if(this->actualNbp == 0){
+                if(cline.size() > maxlen){
+                    throw std::string("ERROR: sequences too long, need to recompile program");
+                }
                 this->actualNbp = (unsigned int)cline.size();
             }
             for(unsigned int i = 0; i < cline.size(); i++){
-                if(i > maxlen || cind > maxseqs){
-                    std::ostringstream err;
-                    err << "ERROR: matrix is too large, currently can only read up to " <<  maxseqs << " seqs, max " << maxlen << "bp long (will need to recompile binary)";
-                    std::string errS = err.str();
-                    throw std::string(errS);
-                }
                 this->alignedData->seqs[cind-1][i] = cline.at(i);
                 this->alignedData->missing[cind-1][i] = (cline.at(i) == 'N' || cline.at(i) == '-' || cline.at(i) == 'n' ) ? 0 : 1;
             }
         }
     }
     this->actualNSeqs = cind;
+    if(cind >= maxseqs){
+        throw std::string("ERROR: too many sequences, need to recompile program");
+    }
     readFile.close();
     if (verbose){
         std::cout << " done, read " << this->actualNSeqs << " individuals, " << this->actualNbp << " bps" << std::endl;
@@ -199,7 +202,8 @@ void sequenceHandler::genericFastaWriter(std::string outfile, std::vector <unsig
 }
 
 
-void sequenceHandler::genericOutput(std::string outfile, std::vector <unsigned int> iSeqs, unsigned int windowSize, float minSequenced, std::string format, bool verbose){
+void sequenceHandler::genericOutput(std::string outfile, std::vector <unsigned int> iSeqs, unsigned int windowSize, float minSequenced, std::string format, bool perGffFeature, bool verbose){
+    
     // output - all
     if(windowSize <= 0){
         std::vector < unsigned int > sitesToOutput;
@@ -217,7 +221,7 @@ void sequenceHandler::genericOutput(std::string outfile, std::vector <unsigned i
             this->genericVcfWriter(outfile, iSeqs, sitesToOutput, verbose);
         }
         else if (format == "stats"){
-            this->genericStatsWriter(outfile, iSeqs, sitesToOutput, verbose);
+            this->genericStatsWriter(outfile, iSeqs, sitesToOutput, perGffFeature, verbose);
         }
     }
     // output - windowed
@@ -247,7 +251,7 @@ void sequenceHandler::genericOutput(std::string outfile, std::vector <unsigned i
             }
             else if (format == "stats"){
                 outfileWindow.append(".stats");
-                this->genericStatsWriter(outfileWindow, iSeqs, sitesToOutput, verbose);
+                this->genericStatsWriter(outfileWindow, iSeqs, sitesToOutput, perGffFeature, verbose);
             }
             else{
                 throw std::string("Unknown format specified (this is a coding issue?): " + format);
@@ -420,7 +424,7 @@ std::string sequenceHandler::getGenotypeForVcf(std::vector <char> uniqueAlleles,
     return "";
 }
 
-void sequenceHandler::genericStatsWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool verbose){
+void sequenceHandler::genericStatsWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool perGffFeature, bool verbose){
     if(verbose){
         std::cout << "Calculating and outputting stats for " << iSeqs.size() << " samples, " << iSites.size() << " sites...";
     }
@@ -428,21 +432,48 @@ void sequenceHandler::genericStatsWriter(std::string outfile, std::vector <unsig
     if(!writeFile.is_open()){
         throw std::string ("ERROR: cant open file for output?");
     }
-    
-    for(auto &idxInd: iSeqs){
-        unsigned int seqSites = 0;
-        unsigned int iupacSites = 0;
-        for(auto &idxSite: iSites){
-            if(!isMissing (this->alignedData->seqs[idxInd][idxSite] )){
-                seqSites++;
-                if(!isHomozygous(this->alignedData->seqs[idxInd][idxSite] )){
-                    iupacSites++;
+    // stats for everything in gff
+    if(!perGffFeature){
+        for(auto &idxInd: iSeqs){
+            unsigned int seqSites = 0;
+            unsigned int iupacSites = 0;
+            for(auto &idxSite: iSites){
+                if(!isMissing (this->alignedData->seqs[idxInd][idxSite] )){
+                    seqSites++;
+                    if(!isHomozygous(this->alignedData->seqs[idxInd][idxSite] )){
+                        iupacSites++;
+                    }
                 }
             }
-        }
         writeFile << this->SeqNames.at(idxInd) << "\t" << 1-  float(seqSites) / float(iSites.size()) << "\t" << float(iupacSites) / float(seqSites) <<  std::endl;
+        }
+    }
+    // write stats per feature
+    else{
+        for(int iFeature = 0; iFeature < myGff->getNumberOfFeatures(); iFeature++){
+            for(auto &idxInd: iSeqs){
+                unsigned int seqSites = 0;
+                unsigned int iupacSites = 0;
+                for(auto &idxSite: iSites){
+                    if (idxSite < myGff->getFeatureStart(iFeature)){
+                        continue;
+                    }
+                    else if (idxSite > myGff->getFeatureStop(iFeature)){
+                        break;
+                    }
+                    if(!isMissing (this->alignedData->seqs[idxInd][idxSite] )){
+                        seqSites++;
+                        if(!isHomozygous(this->alignedData->seqs[idxInd][idxSite] )){
+                            iupacSites++;
+                        }
+                    }
+                }
+            writeFile << this->SeqNames.at(idxInd) << "\t" << 1-  float(seqSites) / float(myGff->getFeatureStop(iFeature) - myGff->getFeatureStart(iFeature) +1 )  << "\t" << float(iupacSites) / float(seqSites) <<  std::endl;
+            }
+        }
     }
     writeFile.close();
+
     if(verbose){
         std::cout << " done" << std::endl;
     }

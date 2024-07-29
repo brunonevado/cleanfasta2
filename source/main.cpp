@@ -15,12 +15,12 @@
 #include "sequenceHandler.hpp"
 
 
-std::string Pversion = "220524";
+std::string Pversion = "v2.290724";
 
 void help(){
     std::cout << "###################\n  cleanFasta2 " << Pversion << " \n###################" << std::endl;
     std::cout << "Will read fasta file and write new fasta file filtering sites and sequences according to different criteria" << std::endl;
-    std::cout << "Usage example: cleanFasta2 -infile infile.fas -outfile outfile.fas -maxMissing 50 [-verbose 1] [ -winsize 1000000 ] [ -samples samples.txt ] [-format fasta/vcf/stats] [-gff annot.gff -scaffold scaf1 -include 0 -feature repeat_region] [-mergeCDS 0]" << std::endl;
+    std::cout << "Usage example: cleanFasta2 -infile infile.fas -outfile outfile.fas -maxMissing 50 [-verbose 1] [ -winsize 1000000 ] [ -samples samples.txt ] [-format fasta/vcf/stats] [-gff annot.gff -scaffold scaf1 -include 0 -feature repeat_region -perFeature 0] [-mergeCDS 0]" << std::endl;
     std::cout << "-infile: input fasta file, should be desinterleaved!" << std::endl;
     std::cout << "-outfile: output fasta file. If using windows or gff, will be used as prefix." << std::endl;
     std::cout << "-maxMissing: only output sites with missingness % at most maxMissing (considering only some samples if -samples set)." << std::endl;
@@ -33,13 +33,15 @@ void help(){
     std::cout << "-scaffold: name of scaffold in GFF file that matches input file." << std::endl;
     std::cout << "-include: whether to include (set to 1) or exclude (set to 0) the features in GFF." << std::endl;
     std::cout << "-feature: name of features to include or exclude (by default will include/exclude all features in gff)." << std::endl;
-    std::cout << "-mergeCDS: Use in conjunction with gff and CDS regions. Will complem,ent/reverse and place in frame each CDS, and output all CDS (in each window if selected). Ignores missingness filter." << std::endl << std::endl;
+    std::cout << "-mergeCDS: use in conjunction with gff and CDS regions. Will complement/reverse and place in frame each CDS, and output all CDS (in each window if selected). Ignores missingness filter." << std::endl;
+    std::cout << "-perFeature: use in conjunction with gff, will output missingness and nucleotide diversity per sample and per feature (same order as in gff; only available with stats output)." << std::endl << std::endl;
+
     std::cout << "NOTES: 1. Only reads desinterleaved fasta format" << std::endl;
     std::cout << "       2. If -samples used, all samples must be present in fasta file" << std::endl;
     std::cout << "       3. Program will read entire matrix to memory, and at start requests enough memory for 2 matrixes (1 int, 1 char) of 500 samples x 80 MB sequences." << std::endl;
     std::cout << "          These values can be changed in sequenceHandler.h (requires recompilation). " << std::endl;
     std::cout << "       4. Ignores gaps (actually, probably crashes with gaps under some settings)." << std::endl;
-    std::cout << "       5. Output format 'stats' will write out missingness and heterozygosity per sample (after excluding sites with missing data above treshold, and by windows if -winsize used ." << std::endl;
+    std::cout << "       5. Output format 'stats' will write out missingness and nucleotide diversity per sample (after excluding sites with missing data above treshold, and by windows if -winsize used ." << std::endl;
 
     
     
@@ -57,6 +59,8 @@ void help(){
 // it exports the alignment from the CDSs present in GFF file, reverse complement them if needed, and put in phase. Then remove
 // stop codons if at end, and finally concatenate everything into 1 long CDS-like
 // it needs to have the gff and the corresponding scaffold set in call to program
+// 010724: added perFeature option, which will output missingness and Pi for each selected sample (after missingness filter) in each selected GFF feature
+// 290724: changed checks for too long/too many sequences
 
 int main(int argc, const char * argv[]) {
     
@@ -75,6 +79,7 @@ int main(int argc, const char * argv[]) {
             "scaffold,s,t",
             "include,b,t",
             "feature,s,t",
+            "perFeature,b,t",
             "mergeCDS,b,t"});
     }catch(std::string e){ help();std::cerr << std::endl << "Failed reading args: " << e << std::endl;exit(1);}
 
@@ -101,12 +106,36 @@ int main(int argc, const char * argv[]) {
         exit(1);
     }
     
-    if(programOptions.isArgDefined("mergeCDS") && !programOptions.isArgDefined("gff") ){
+    if(mergeCDS && gffFile == "" ){
         std::cerr << "For mergeCDS option need to provide a GFF file" << std::endl;
         exit(1);
     }
     
-    
+
+    // option to output stats per feature in gff file (instead of stats for concatenation of feature)
+    // if this option is true, output must be GFF - needs check here before proceeding; and window options must not be set; and include must be 1; and output must be stats
+    bool gffPerFeature = programOptions.isArgDefined("perFeature")  ? programOptions.getBool("perFeature") : false;
+    if(gffPerFeature){
+        if(gffFile == ""){
+            std::cerr << "For perFeature option need to provide a GFF file" << std::endl;
+            exit(1);
+        }
+        if(winsize != 0){
+            std::cerr << "The perFeature option is incompatible with winsize != 0" << std::endl;
+            exit(1);
+            }
+        if(!gffInclude){
+            std::cerr << "The perFeature option is incompatible with include = 0" << std::endl;
+            exit(1);
+        }
+        if(outputFormat != "stats"){
+            std::cerr << "The perFeature option is incompatible with output format != stats" << std::endl;
+            exit(1);
+        }
+    }
+
+
+
     // create objects
     sequenceHandler mySeqHandler (Pversion);
     gff agff(gffFile);
@@ -116,6 +145,11 @@ int main(int argc, const char * argv[]) {
         // read fasta file - desinterleaved only for now!
         mySeqHandler.readFasta(infile, noisy);
         
+        // check small size, indicative of interleaved format
+        if (mySeqHandler.getNumberSites() < 500){
+            std::cout << "<cleanfasta2> WARNING: sequences are short (< 500 bp), is the input fasta file interleaved?" << std::endl;
+        }
+
         // read gff if defined
         if(gffFile != ""){
             mySeqHandler.readGff(gffInclude,gffScaffold, gffFeature,noisy);
@@ -139,7 +173,7 @@ int main(int argc, const char * argv[]) {
         }
         else{
             // output
-            mySeqHandler.genericOutput(outfile, idxsSequencesToConsider, winsize, minSequenced, outputFormat, noisy);
+            mySeqHandler.genericOutput(outfile, idxsSequencesToConsider, winsize, minSequenced, outputFormat, gffPerFeature, noisy);
         }
     }
     catch(std::string e){

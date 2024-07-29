@@ -65,8 +65,8 @@ private:
     // will write to outfile the sequences in iSeqs and the sites in iSites in vcf-like format
     void genericVcfWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool verbose = false);
     
-    // will calculate and write to outfile per sample missingness & heterozygosity
-    void genericStatsWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool verbose = false);
+    // will calculate and write to outfile per sample missingness & nucleotide diversity
+    void genericStatsWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool perFeature = false, bool verbose = false);
 
     //
     void writeVcfLine(std::vector <unsigned int> &iSeqs, unsigned int site, std::ofstream &outfile);
@@ -106,7 +106,8 @@ public:
     
     // will write either windows or full. For window output will add "windowStats.windowEnd.fas" to outfile name
     // will only consider samples in idxsSequencesToConsider and sites with >= minSequenced
-    void genericOutput(std::string outfile, std::vector <unsigned int> iSeqs, unsigned int windowSize, float minSequenced, std::string format = "fasta", bool verbose = false);
+    // will also consider the "per feature" option to output stats per feature in gff
+    void genericOutput(std::string outfile, std::vector <unsigned int> iSeqs, unsigned int windowSize, float minSequenced, std::string format = "fasta", bool perGffFeature = false, bool verbose = false);
     
     // will "attach" the a gff object
     void addGff(gff * g){this->myGff = g;};
