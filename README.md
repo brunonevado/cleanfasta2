@@ -23,7 +23,7 @@ GFF options:
 -include: whether to include (set to 1) or exclude (set to 0) the features in GFF.  
 -feature: name of features to include or exclude (by default will include/exclude all features in gff).  
 -mergeCDS: use in conjunction with gff and CDS regions. Will complement/reverse and place in frame each CDS, and output all CDS (in each window if selected). Ignores missingness filter.  
--perFeature: use in conjunction with gff, will output missingness and nucleotide diversity per sample and per feature (same order as in gff; only available with stats output).  
+-perFeature: use in conjunction with gff. With stats output will write missingness and nucleotide diversity per sample and per feature (same order as in gff). With fasta output will write 1 fasta file per feature (named outfile.featureX.fas, where X is position of feature in GFF file).  
   
     
 NOTES: 1. Only reads desinterleaved fasta format  
