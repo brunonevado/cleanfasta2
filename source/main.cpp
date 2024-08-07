@@ -15,7 +15,7 @@
 #include "sequenceHandler.hpp"
 
 
-std::string Pversion = "v2.290724";
+std::string Pversion = "v2.070824";
 
 void help(){
     std::cout << "###################\n  cleanFasta2 " << Pversion << " \n###################" << std::endl;
@@ -34,7 +34,7 @@ void help(){
     std::cout << "-include: whether to include (set to 1) or exclude (set to 0) the features in GFF." << std::endl;
     std::cout << "-feature: name of features to include or exclude (by default will include/exclude all features in gff)." << std::endl;
     std::cout << "-mergeCDS: use in conjunction with gff and CDS regions. Will complement/reverse and place in frame each CDS, and output all CDS (in each window if selected). Ignores missingness filter." << std::endl;
-    std::cout << "-perFeature: use in conjunction with gff, will output missingness and nucleotide diversity per sample and per feature (same order as in gff; only available with stats output)." << std::endl << std::endl;
+    std::cout << "-perFeature: use in conjunction with gff. With stats output will write missingness and nucleotide diversity per sample and per feature (same order as in gff). With fasta output will write 1 fasta file per feature (named outfile.featureX.fas, where X is position of feature in GFF file)." << std::endl << std::endl;
 
     std::cout << "NOTES: 1. Only reads desinterleaved fasta format" << std::endl;
     std::cout << "       2. If -samples used, all samples must be present in fasta file" << std::endl;
@@ -61,6 +61,7 @@ void help(){
 // it needs to have the gff and the corresponding scaffold set in call to program
 // 010724: added perFeature option, which will output missingness and Pi for each selected sample (after missingness filter) in each selected GFF feature
 // 290724: changed checks for too long/too many sequences
+// 070824: added option to output per feature fasta file
 
 int main(int argc, const char * argv[]) {
     
@@ -128,8 +129,8 @@ int main(int argc, const char * argv[]) {
             std::cerr << "The perFeature option is incompatible with include = 0" << std::endl;
             exit(1);
         }
-        if(outputFormat != "stats"){
-            std::cerr << "The perFeature option is incompatible with output format != stats" << std::endl;
+        if(outputFormat != "stats" && outputFormat != "fasta"){
+            std::cerr << "The perFeature option only available with stats or fasta output formats" << std::endl;
             exit(1);
         }
     }

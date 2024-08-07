@@ -60,7 +60,7 @@ private:
     void filterSitesByMissing (std::vector <unsigned int> & idxs, float minSequenced, unsigned int start, unsigned int stop, bool verbose = false);
     
     // will write to outfile the sequences in iSeqs and the sites in iSites in fasta format
-    void genericFastaWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool verbose = false);
+    void genericFastaWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool perFeature = false, bool verbose = false);
     
     // will write to outfile the sequences in iSeqs and the sites in iSites in vcf-like format
     void genericVcfWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool verbose = false);

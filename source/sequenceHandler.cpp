@@ -180,25 +180,61 @@ void sequenceHandler::getIndexesOfSamplesOfInterest( std::vector <unsigned int> 
 }
 
 
-void sequenceHandler::genericFastaWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool verbose){
-    std::ofstream writeFile(outfile);
-    if(!writeFile.is_open()){
-        throw std::string ("ERROR: cant open file for output?");
-    }
-    if(verbose){
-        std::cout << "Writing fasta format to file " << outfile << " : " << iSeqs.size() << " sequences, " << iSites.size() << " sites..." << std::flush;
-    }
-    for( auto &i : iSeqs){
-        writeFile << ">" << this->SeqNames.at(i) << std::endl;
-        for(auto &j : iSites){
-            writeFile << this->alignedData->seqs[i][j];
+void sequenceHandler::genericFastaWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool perFeature, bool verbose){
+    // write single fasta file
+    if(!perFeature){
+        std::ofstream writeFile(outfile);
+        if(!writeFile.is_open()){
+            throw std::string ("ERROR: cant open file for output?");
         }
-        writeFile << std::endl;
+        if(verbose){
+            std::cout << "Writing fasta format to file " << outfile << " : " << iSeqs.size() << " sequences, " << iSites.size() << " sites..." << std::flush;
+        }
+        for( auto &i : iSeqs){
+            writeFile << ">" << this->SeqNames.at(i) << std::endl;
+            for(auto &j : iSites){
+                writeFile << this->alignedData->seqs[i][j];
+            }
+            writeFile << std::endl;
+        }
+            writeFile.close();
     }
+    // write fasta file per feature
+    else{
+        for(int iFeature = 0; iFeature < myGff->getNumberOfFeatures(); iFeature++){
+            std::vector <unsigned int> SitesWithinFeature;
+            int startFeature = myGff->getFeatureStart(iFeature);
+            int stopFeature = myGff->getFeatureStop(iFeature);
+            for(auto &idxSite: iSites){
+                if(idxSite < startFeature){
+                    continue;
+                }
+                else if(idxSite > stopFeature){
+                    break;
+                }
+                else{
+                    SitesWithinFeature.push_back(idxSite);
+                }
+
+            }
+            // note here we call this same function but with the perFeature set to false, so it outputs the current feature
+            if(SitesWithinFeature.size() > 0){
+                std::string outfileFeature = outfile;
+                outfileFeature.append(".feature");
+                outfileFeature.append(std::to_string(iFeature));
+                outfileFeature.append(".fas");
+                std::cout << " calling myself now" << std::endl;
+                this->genericFastaWriter(outfileFeature, iSeqs, SitesWithinFeature,false, verbose);
+                std::cout << " called myself done" << std::endl;
+                SitesWithinFeature.clear();
+            }
+            
+        }
+    }
+    
     if(verbose){
         std::cout << " done" << std::endl;
     }
-    writeFile.close();
 }
 
 
@@ -216,7 +252,7 @@ void sequenceHandler::genericOutput(std::string outfile, std::vector <unsigned i
         }
         
         if(format == "fasta") {
-            this->genericFastaWriter(outfile, iSeqs, sitesToOutput, verbose);}
+            this->genericFastaWriter(outfile, iSeqs, sitesToOutput, perGffFeature, verbose);}
         else if (format == "vcf"){
             this->genericVcfWriter(outfile, iSeqs, sitesToOutput, verbose);
         }
@@ -243,7 +279,7 @@ void sequenceHandler::genericOutput(std::string outfile, std::vector <unsigned i
             }
             if(format == "fasta") {
                 outfileWindow.append(".fas");
-                this->genericFastaWriter(outfileWindow, iSeqs, sitesToOutput, verbose);
+                this->genericFastaWriter(outfileWindow, iSeqs, sitesToOutput,perGffFeature, verbose);
             }
             else if (format == "vcf"){
                 outfileWindow.append(".vcf");
