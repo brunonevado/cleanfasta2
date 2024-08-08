@@ -223,9 +223,7 @@ void sequenceHandler::genericFastaWriter(std::string outfile, std::vector <unsig
                 outfileFeature.append(".feature");
                 outfileFeature.append(std::to_string(iFeature));
                 outfileFeature.append(".fas");
-                std::cout << " calling myself now" << std::endl;
                 this->genericFastaWriter(outfileFeature, iSeqs, SitesWithinFeature,false, verbose);
-                std::cout << " called myself done" << std::endl;
                 SitesWithinFeature.clear();
             }
             
