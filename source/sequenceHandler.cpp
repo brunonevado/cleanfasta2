@@ -229,7 +229,6 @@ void sequenceHandler::genericFastaWriter(std::string outfile, std::vector <unsig
             
         }
     }
-    
     if(verbose){
         std::cout << " done" << std::endl;
     }
