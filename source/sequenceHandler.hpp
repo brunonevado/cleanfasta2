@@ -39,7 +39,7 @@ private:
     std::string mainProgramVersion = "N/A";
     std::string inputFile = "N/A";
     bool hasGff = false;
-
+    bool strictNames = true;
     
     // this function will define what are missing chars (N,n,-)
     bool isMissing(char in);
@@ -121,6 +121,8 @@ public:
     //write merged CDSs
     void writeCDS(std::string outfile, std::vector < std::vector <int> > & CDSmatrix, std::vector < unsigned int > idxsSequencesToConsider, bool verbose = false);
 
+    // set strict names check
+    void setStrictNames(bool strict){this->strictNames = strict;};
     
     gff * myGff;
 

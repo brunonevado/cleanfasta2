@@ -15,12 +15,12 @@
 #include "sequenceHandler.hpp"
 
 
-std::string Pversion = "v2.070824";
+std::string Pversion = "v2.060125";
 
 void help(){
     std::cout << "###################\n  cleanFasta2 " << Pversion << " \n###################" << std::endl;
     std::cout << "Will read fasta file and write new fasta file filtering sites and sequences according to different criteria" << std::endl;
-    std::cout << "Usage example: cleanFasta2 -infile infile.fas -outfile outfile.fas -maxMissing 50 [-verbose 1] [ -winsize 1000000 ] [ -samples samples.txt ] [-format fasta/vcf/stats] [-gff annot.gff -scaffold scaf1 -include 0 -feature repeat_region -perFeature 0] [-mergeCDS 0]" << std::endl;
+    std::cout << "Usage example: cleanFasta2 -infile infile.fas -outfile outfile.fas -maxMissing 50 [-verbose 1] [ -winsize 1000000 ] [ -samples samples.txt ] [-format fasta/vcf/stats] [-gff annot.gff -scaffold scaf1 -include 0 -feature repeat_region -perFeature 0] [-mergeCDS 0] [-strictNames 1]" << std::endl;
     std::cout << "-infile: input fasta file, should be desinterleaved!" << std::endl;
     std::cout << "-outfile: output fasta file. If using windows or gff, will be used as prefix." << std::endl;
     std::cout << "-maxMissing: only output sites with missingness % at most maxMissing (considering only some samples if -samples set)." << std::endl;
@@ -28,6 +28,8 @@ void help(){
     std::cout << "-samples: text file containing samples to consider (1 sample per line - if not used outputs all samples)." << std::endl;
     std::cout << "-verbose: some info to screen if set to != 0 (default = 0, i.e. no screen output)." << std::endl ;
     std::cout << "-format: output format, either fasta (the default), vcf or stats." << std::endl << std::endl;
+    std::cout << "-strictNames: if set to 1 (the default), will exit program with an error if not all samples in -samples file are found in infile. If set to 0, will just raise a warning and continue." << std::endl << std::endl;
+    
     std::cout << "GFF options:" << std::endl;
     std::cout << "-gff: GFF annotation file with regions to include or exclude." << std::endl;
     std::cout << "-scaffold: name of scaffold in GFF file that matches input file." << std::endl;
@@ -51,7 +53,6 @@ void help(){
  Still to add:
  1. read interleaved file
  . check if input file is aligned
- 2. option to not crash if not all samples are found
  */
 
 // 220524: added check for when matrix is too large
@@ -62,6 +63,7 @@ void help(){
 // 010724: added perFeature option, which will output missingness and Pi for each selected sample (after missingness filter) in each selected GFF feature
 // 290724: changed checks for too long/too many sequences
 // 070824: added option to output per feature fasta file
+// 060125: added option not to crash if not all samples are found
 
 int main(int argc, const char * argv[]) {
     
@@ -81,6 +83,7 @@ int main(int argc, const char * argv[]) {
             "include,b,t",
             "feature,s,t",
             "perFeature,b,t",
+            "strictNames,b,t",
             "mergeCDS,b,t"});
     }catch(std::string e){ help();std::cerr << std::endl << "Failed reading args: " << e << std::endl;exit(1);}
 
@@ -98,6 +101,7 @@ int main(int argc, const char * argv[]) {
     bool noisy = programOptions.isArgDefined("verbose") ? programOptions.getBool("verbose") : false;
     // gff options & checks
     bool mergeCDS = programOptions.isArgDefined("mergeCDS") ? programOptions.getBool("mergeCDS") : false;
+    bool strictNames = programOptions.isArgDefined("strictNames") ? programOptions.getBool("strictNames") : false;
     std::string gffFile = programOptions.isArgDefined("gff")  ? programOptions.getString("gff") : "";
     std::string gffScaffold = programOptions.isArgDefined("scaffold")  ? programOptions.getString("scaffold") : "";
     std::string gffFeature = programOptions.isArgDefined("feature")  ? programOptions.getString("feature") : "all";
@@ -141,6 +145,7 @@ int main(int argc, const char * argv[]) {
     sequenceHandler mySeqHandler (Pversion);
     gff agff(gffFile);
     mySeqHandler.addGff(&agff);
+    mySeqHandler.setStrictNames(strictNames);
      
     try{
         // read fasta file - desinterleaved only for now!

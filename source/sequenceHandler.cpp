@@ -174,7 +174,12 @@ void sequenceHandler::getIndexesOfSamplesOfInterest( std::vector <unsigned int> 
         this->findIndexesOfSamples(sampleNames, SampleIndexes, verbose);
         
         if(sampleNames.size() != SampleIndexes.size()){
-            throw std::string("Error: not all sequences found in file. Might need to implement something here");
+            if(this->strictNames == false){
+                std::cerr << "WARNING: not all sequences found in file.";
+            }
+            else{
+                throw std::string("Error: not all sequences found in file. Check input and options or rerun with -strictNames 0.");
+            }
         }
     }
 }
