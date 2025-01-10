@@ -1,0 +1,5 @@
+build/
+.vscode/
+cMakeLists.txt
+CMakePresets.json
+
