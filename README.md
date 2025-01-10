@@ -6,7 +6,7 @@ It does not use Bio++ libraries so should be easier to compile.
 
 
 Will read fasta file and write new fasta file filtering sites and sequences according to different criteria  
-Usage example: cleanFasta2 -infile infile.fas -outfile outfile.fas -maxMissing 50 [-verbose 1] [ -winsize 1000000 ] [ -samples samples.txt ] [-format fasta/vcf/stats] [-gff annot.gff -scaffold scaf1 -include 0 -feature repeat_region -perFeature 0] [-mergeCDS 0]  
+Usage example: cleanFasta2 -infile infile.fas -outfile outfile.fas -maxMissing 50 [-verbose 1] [ -winsize 1000000 ] [ -samples samples.txt ] [-format fasta/vcf/stats] [-gff annot.gff -scaffold scaf1 -include 0 -feature repeat_region -perFeature 0] [-mergeCDS 0]  [-strictNames 1]
   
 -infile: input fasta file, should be desinterleaved!  
 -outfile: output fasta file. If using windows or gff, will be used as prefix.  
@@ -15,7 +15,7 @@ Usage example: cleanFasta2 -infile infile.fas -outfile outfile.fas -maxMissing 5
 -samples: text file containing samples to consider (1 sample per line - if not used outputs all samples).  
 -verbose: some info to screen if set to != 0 (default = 0, i.e. no screen output).  
 -format: output format, either fasta (the default), vcf or stats.  
-  
+-strictNames: if set to 1 (the default), will exit program with an error if not all samples in -samples file are found in infile. If set to 0, will just raise a warning and continue.
     
 GFF options:  
 -gff: GFF annotation file with regions to include or exclude.  
