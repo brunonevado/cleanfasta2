@@ -124,13 +124,19 @@ void sequenceHandler::readSampleNames(std::vector < std::string > & SampleNames,
  }
  */
 
-void sequenceHandler::filterSitesByMissing (std::vector <unsigned int> & idxs, float minSequenced, unsigned int start, unsigned int stop, bool verbose){
+void sequenceHandler::filterSitesByMissing (std::vector <unsigned int> & idxs, float minSequenced, unsigned int start, unsigned int stop,std::vector <unsigned int> & SampleIndexes, bool verbose){
+    // this will filter sites with too much missing data
+    // and, if set before, exclude monomorphic sites
+    
     if(verbose){
         std::cout << "Filtering sites for missingness..." << std::flush;
     }
     for(unsigned int i = start; i < stop; i++){
         if(this->fractionSequencedPerSite.at(i) >= minSequenced){
-            idxs.push_back(i);
+            // filter here is outputting only variable sites
+            if(!this->onlyVars || ( this->onlyVars && this->isSitePolymorphic(i,SampleIndexes))) {
+                idxs.push_back(i);
+            }
         }
     }
     if(verbose){
@@ -245,7 +251,7 @@ void sequenceHandler::genericOutput(std::string outfile, std::vector <unsigned i
     // output - all
     if(windowSize <= 0){
         std::vector < unsigned int > sitesToOutput;
-        this->filterSitesByMissing(sitesToOutput, minSequenced, 0, this->getNumberSites(), verbose);
+        this->filterSitesByMissing(sitesToOutput, minSequenced, 0, this->getNumberSites(),iSeqs, verbose);
         
         if(this->hasGff){
             std::vector <unsigned int> filteredSites = this->myGff->filterSitesByGff(sitesToOutput);
@@ -272,7 +278,7 @@ void sequenceHandler::genericOutput(std::string outfile, std::vector <unsigned i
                 stop = this->getNumberSites();
             }
             std::string outfileWindow = outfile + "." + std::to_string(start+1) + "_" + std::to_string(stop);
-            this->filterSitesByMissing(sitesToOutput, minSequenced, start, stop, verbose);
+            this->filterSitesByMissing(sitesToOutput, minSequenced, start, stop, iSeqs, verbose);
             
             if(this->hasGff){
                 std::vector <unsigned int> filteredSites = this->myGff->filterSitesByGff(sitesToOutput);
@@ -310,7 +316,9 @@ void sequenceHandler::genericVcfWriter(std::string outfile, std::vector <unsigne
     }
     
     // VCF header
-    writeFile << "##fileformat=VCFv4.x" << std::endl << "##File created with cleanfasta2 v" << this->mainProgramVersion << " from input fasta file " << this->inputFile << " on " << this->getCurrentTime();
+    writeFile << "##fileformat=VCFv4.x" << std::endl;
+    writeFile << "##File created with cleanfasta2 v" << this->mainProgramVersion << " from input fasta file " << this->inputFile << " on " << this->getCurrentTime();
+    writeFile << "##Note that QUAL field is meaningless." << std::endl;
     writeFile << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">" << std::endl;
     writeFile << "##INFO=<ID=PS,Number=1,Type=Float,Description=\"Proportion sequenced\">" << std::endl;
     // eventually would like to add the call to the program, similar to: ##bcftools_viewCommand=view Lup2342.unflt.bcf; Date=Fri Jul 28 12:47:25 2023
@@ -361,7 +369,7 @@ void sequenceHandler::writeVcfLine(std::vector <unsigned int> &iSeqs, unsigned i
         }
     }
     // write out info section + GT section
-    outfile <<  "\tPASS\tPS=" << this->fractionSequencedPerSite.at(site) << "\tGT";
+    outfile <<  "\t999\tPASS\tPS=" << this->fractionSequencedPerSite.at(site) << "\tGT";
     // write out genotypes
     for(unsigned int i = 0; i < allAlleles.size(); i +=2){
         outfile << "\t" << this->getGenotypeForVcf(uniqueAlleles, allAlleles, i);
@@ -541,6 +549,7 @@ void sequenceHandler::test(){
 }
 
 // writes just the cds. still need to complement if needed
+// also excludes monomorphic sites if requested
 void sequenceHandler::writeCDS(std::string outfile, std::vector < std::vector <int> > & CDSmatrix, std::vector < unsigned int > idxsSequencesToConsider, bool verbose ){
     std::ofstream writeFile(outfile);
     if(!writeFile.is_open()){
@@ -552,11 +561,13 @@ void sequenceHandler::writeCDS(std::string outfile, std::vector < std::vector <i
     for(auto & i: idxsSequencesToConsider){
         writeFile << ">" << this->SeqNames.at(i) << std::endl;
         for(int idxCDS = 0; idxCDS < CDSmatrix.at(0).size(); idxCDS++){
-            if(CDSmatrix.at(1).at(idxCDS) == 1){
-                writeFile << getComplementary(i, CDSmatrix.at(0).at(idxCDS));
-            }
-            else{
-                writeFile << this->alignedData->seqs[i][CDSmatrix.at(0).at(idxCDS)];
+            if(!this->onlyVars || ( this->onlyVars && this->isSitePolymorphic(i,idxsSequencesToConsider))){
+                if(CDSmatrix.at(1).at(idxCDS) == 1){
+                    writeFile << getComplementary(i, CDSmatrix.at(0).at(idxCDS));
+                }
+                else{
+                    writeFile << this->alignedData->seqs[i][CDSmatrix.at(0).at(idxCDS)];
+                }
             }
         }
         writeFile << std::endl;
@@ -725,4 +736,29 @@ int sequenceHandler::removeLastCodonIfStop(std::vector < std::vector <int> > & C
     return 0;
 }
 
+bool sequenceHandler::isSitePolymorphic(int iSite, std::vector < unsigned int > & idxsSequencesToConsider){
+    // note var i should be 0-based
+    char firstNonMissingBase = ' ';
+    for( auto & iSeq: idxsSequencesToConsider ){
+        if( this->alignedData->seqs[iSeq][iSite] != 'n' && this->alignedData->seqs[iSeq][iSite] != 'N' ){
+            if( !isMissing(this->alignedData->seqs[iSeq][iSite]) && !isHomozygous(this->alignedData->seqs[iSeq][iSite] )){
+                return true;
+            }
+            if(firstNonMissingBase == ' '){
+                firstNonMissingBase = this->alignedData->seqs[iSeq][iSite];
+                continue;
 
+            }else{
+                if(firstNonMissingBase != this->alignedData->seqs[iSeq][iSite]){
+                    return true;
+                }
+                else{
+                    continue;
+                }
+
+            }
+        }
+    }
+    return false;
+
+}

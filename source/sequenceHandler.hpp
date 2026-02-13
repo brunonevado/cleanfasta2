@@ -40,7 +40,7 @@ private:
     std::string inputFile = "N/A";
     bool hasGff = false;
     bool strictNames = true;
-    
+    bool onlyVars = false;
     // this function will define what are missing chars (N,n,-)
     bool isMissing(char in);
    
@@ -57,7 +57,8 @@ private:
     // will fill up the vector referenced with indexes of sites with missing data below threshold
     // must have called calcSamplesPerSite
     // can also use windows here
-    void filterSitesByMissing (std::vector <unsigned int> & idxs, float minSequenced, unsigned int start, unsigned int stop, bool verbose = false);
+    // will also filter monomorphic positions if requested 
+    void filterSitesByMissing (std::vector <unsigned int> & idxs, float minSequenced, unsigned int start, unsigned int stop, std::vector <unsigned int> & SampleIndexes, bool verbose = false);
     
     // will write to outfile the sequences in iSeqs and the sites in iSites in fasta format
     void genericFastaWriter(std::string outfile, std::vector <unsigned int> &iSeqs, std::vector <unsigned int> &iSites, bool perFeature = false, bool verbose = false);
@@ -92,6 +93,9 @@ private:
     // returns complementary base
     char getComplementary(unsigned int idxInd, unsigned int idxSite);
     
+    // check if site is polymorphic
+    bool isSitePolymorphic(int i, std::vector < unsigned int > & idxsSequencesToConsider); 
+
 public:
     sequenceHandler( std::string Pversion = "N/A" ) { this->alignedData = new Alignment; this->mainProgramVersion = Pversion;};
     void readFasta (std::string infile, bool verbose = false);
@@ -124,6 +128,9 @@ public:
     // set strict names check
     void setStrictNames(bool strict){this->strictNames = strict;};
     
+    // set to output only variable positions
+    void setVarsOnly(bool vars){this->onlyVars = vars;};
+     
     gff * myGff;
 
     void test();
